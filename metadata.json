@@ -1,0 +1,6 @@
+{
+  "name": "GrandMaster Chess – Premium FIDE Chess Web App",
+  "description": "Trò chơi Cờ Vua Cao Cấp chuẩn FIDE quốc tế - Đấu AI đa cấp độ, 2 người chơi cùng máy, đồng hồ cờ, phân tích thế cờ, gợi ý và âm thanh sống động.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

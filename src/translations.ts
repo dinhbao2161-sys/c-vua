@@ -1,0 +1,272 @@
+import { Language } from './types/chess';
+
+export const translations = {
+  vi: {
+    appTitle: 'GrandMaster Chess',
+    tagline: 'Cờ Vua Đỉnh Cao Chuẩn Quốc Tế FIDE',
+    playVsAI: 'Đấu với Máy (AI)',
+    playPassAndPlay: 'Đấu 2 Người (Cùng Thiết Bị)',
+    analysisMode: 'Chế Độ Phân Tích',
+    newGame: 'Ván Đấu Mới',
+    restart: 'Bắt Đầu Lại',
+    resign: 'Đầu Hàng',
+    offerDraw: 'Xin Hòa',
+    undo: 'Hoàn Tác',
+    hint: 'Gợi Ý Nước Đi',
+    coach: 'Hỏi Đại Kiện Tướng',
+    flipBoard: 'Đổi Góc Nhìn',
+    settings: 'Cài Đặt',
+    history: 'Biên Bản Ván Đấu',
+    white: 'Quân Trắng',
+    black: 'Quân Đen',
+    draw: 'Hòa Cờ',
+    you: 'Bạn',
+    opponent: 'Đối Thủ',
+    evalScore: 'Thế cờ',
+    evalWhiteAdvantage: 'Trắng chiếm ưu thế',
+    evalBlackAdvantage: 'Đen chiếm ưu thế',
+    evalEqual: 'Cân bằng',
+    mateIn: 'Chiếu hết sau {n} nước',
+    turnToMove: 'Lượt đi của',
+    check: 'Chiếu tướng!',
+    checkmate: 'Chiếu bí!',
+    stalemate: 'Thế cờ hòa (Hết nước đi)',
+    insufficientMaterial: 'Hòa do không đủ lực lượng chiếu hết',
+    threefoldRepetition: 'Hòa do lặp lại nước đi 3 lần',
+    fiftyMoves: 'Hòa do quy tắc 50 nước không ăn quân',
+    timeOut: 'Hết giờ!',
+    resignedMessage: '{player} đã xin đầu hàng',
+    drawAgreed: 'Hai bên đồng ý hòa cờ',
+    winnerIs: 'Người chiến thắng: {player}',
+    gameOver: 'Ván Đấu Kết Thúc',
+    rematch: 'Chơi Lại',
+    close: 'Đóng',
+    
+    // AI Difficulties
+    aiNovice: 'Cấp 1: Tập sự (ELO ~700)',
+    aiNoviceDesc: 'Nước đi cơ bản, thích hợp cho người mới làm quen luật cờ.',
+    aiBeginner: 'Cấp 2: Người mới (ELO ~1100)',
+    aiBeginnerDesc: 'Biết tính toán bắt quân cơ bản, thỉnh thoảng mắc sai sót.',
+    aiIntermediate: 'Cấp 3: Trung bình (ELO ~1500)',
+    aiIntermediateDesc: 'Tấn công có tổ chức, biết bảo vệ vua và kiểm soát trung tâm.',
+    aiAdvanced: 'Cấp 4: Nâng cao (ELO ~1850)',
+    aiAdvancedDesc: 'Tính toán sâu 4 nước, tận dụng chiến thuật giằng và xiên.',
+    aiMaster: 'Cấp 5: Đại kiện tướng (ELO ~2200+)',
+    aiMasterDesc: 'Tìm kiếm phương án tối ưu với thuật toán Alpha-Beta sâu sắc.',
+
+    // Time Controls
+    timeUnlimited: 'Không giới hạn thời gian',
+    timeBullet10: 'Bullet 1 phút',
+    timeBullet21: 'Bullet 2 phút + 1s',
+    timeBlitz30: 'Blitz 3 phút',
+    timeBlitz32: 'Blitz 3 phút + 2s',
+    timeBlitz50: 'Blitz 5 phút',
+    timeBlitz53: 'Blitz 5 phút + 3s',
+    timeRapid100: 'Rapid 10 phút',
+    timeRapid1510: 'Rapid 15 phút + 10s',
+    timeClassical30: 'Classical 30 phút',
+
+    // Themes
+    themeTournament: 'Xanh Thi Đấu (Tournament Green)',
+    themeWood: 'Gỗ Cổ Điển (Classic Wood)',
+    themeMidnight: 'Đêm Huyền Bí (Midnight Slate)',
+    themeCharcoal: 'Than Đen Tối Giản (Charcoal)',
+    themeOcean: 'Đại Dương Xanh (Ocean Breeze)',
+
+    // Piece themes
+    pieceNeo: 'Hiện Đại (Neo Clean)',
+    pieceClassic: 'Cổ Điển Staunton',
+    pieceWood: 'Chất Gỗ Mộc (Woodcraft)',
+
+    // Settings
+    soundEffects: 'Âm thanh ván đấu',
+    soundDescription: 'Phát âm thanh khi đi cờ, ăn quân, chiếu và hết giờ',
+    showCoordinates: 'Hiển thị tọa độ bàn cờ (a-h, 1-8)',
+    showLegalMoves: 'Gợi ý các ô di chuyển hợp lệ',
+    highlightLastMove: 'Đánh dấu nước đi vừa thực hiện',
+    autoFlipBoard: 'Tự động xoay bàn cờ theo lượt (Chế độ 2 người)',
+    boardTheme: 'Giao diện bàn cờ',
+    pieceTheme: 'Phong cách quân cờ',
+    language: 'Ngôn ngữ',
+
+    // Setup Game Modal
+    setupTitle: 'Cấu Hình Ván Đấu Mới',
+    selectGameMode: 'Chọn Chế Độ Chơi',
+    selectColor: 'Chọn Phe Đi',
+    whiteColor: 'Trắng (Đi trước)',
+    blackColor: 'Đen (Đi sau)',
+    randomColor: 'Ngẫu nhiên',
+    selectDifficulty: 'Độ Khó Máy Tính (AI)',
+    selectTimeControl: 'Thời Gian Thi Đấu',
+    startGame: 'Bắt Đầu Trận Đấu',
+
+    // Promotion
+    promotePawn: 'Phong Cấp Cho Tốt',
+    queen: 'Hậu (Queen)',
+    rook: 'Xe (Rook)',
+    bishop: 'Tượng (Bishop)',
+    knight: 'Mã (Knight)',
+
+    // Move Navigator
+    startMove: 'Đầu ván',
+    prevMove: 'Nước trước',
+    nextMove: 'Nước sau',
+    currentMove: 'Nước hiện tại',
+    reviewingHistory: 'Đang xem lại nước đi trong quá khứ',
+    returnToLive: 'Trở lại ván đấu hiện tại',
+    exportPGN: 'Xuất PGN',
+    copyFEN: 'Sao chép FEN',
+    copiedFEN: 'Đã sao chép FEN vào bộ nhớ tạm!',
+    copiedPGN: 'Đã sao chép PGN vào bộ nhớ tạm!',
+    materialAdvantage: 'Lợi thế lực lượng',
+
+    // AI Coach
+    gmCoachTitle: 'Phân Tích Cùng Đại Kiện Tướng',
+    gmCoachSubtitle: 'Đánh giá chiến thuật và kế hoạch tốt nhất từ AI',
+    analyzingPosition: 'Đang tính toán các biến cờ và chiến lược...',
+    bestMoveRecommendation: 'Nước cờ tối ưu được đề xuất:',
+    tacticalReasoning: 'Phân tích thế trận & chiến lược:',
+    coachError: 'Không thể kết nối đến máy chủ phân tích, đang dùng phân tích tính toán cục bộ.',
+    askCoachAgain: 'Phân tích lại thế cờ này',
+    noMovesYet: 'Chưa có nước đi nào được thực hiện.'
+  },
+  en: {
+    appTitle: 'GrandMaster Chess',
+    tagline: 'Premium International FIDE Chess',
+    playVsAI: 'Play vs Computer (AI)',
+    playPassAndPlay: '2 Players (Pass & Play)',
+    analysisMode: 'Analysis Board',
+    newGame: 'New Game',
+    restart: 'Restart Game',
+    resign: 'Resign',
+    offerDraw: 'Offer Draw',
+    undo: 'Takeback / Undo',
+    hint: 'Move Hint',
+    coach: 'Ask Grandmaster',
+    flipBoard: 'Flip Board',
+    settings: 'Settings',
+    history: 'Move History',
+    white: 'White',
+    black: 'Black',
+    draw: 'Draw',
+    you: 'You',
+    opponent: 'Opponent',
+    evalScore: 'Evaluation',
+    evalWhiteAdvantage: 'White is winning',
+    evalBlackAdvantage: 'Black is winning',
+    evalEqual: 'Equal position',
+    mateIn: 'Mate in {n}',
+    turnToMove: 'Turn to move',
+    check: 'Check!',
+    checkmate: 'Checkmate!',
+    stalemate: 'Stalemate (Draw)',
+    insufficientMaterial: 'Draw by insufficient material',
+    threefoldRepetition: 'Draw by threefold repetition',
+    fiftyMoves: 'Draw by 50-move rule',
+    timeOut: 'Time out!',
+    resignedMessage: '{player} resigned',
+    drawAgreed: 'Draw agreed by both players',
+    winnerIs: 'Winner: {player}',
+    gameOver: 'Game Over',
+    rematch: 'Rematch',
+    close: 'Close',
+
+    // AI Difficulties
+    aiNovice: 'Level 1: Novice (ELO ~700)',
+    aiNoviceDesc: 'Basic moves, great for beginners learning chess rules.',
+    aiBeginner: 'Level 2: Beginner (ELO ~1100)',
+    aiBeginnerDesc: 'Makes basic captures, occasional tactical oversights.',
+    aiIntermediate: 'Level 3: Intermediate (ELO ~1500)',
+    aiIntermediateDesc: 'Sound opening principles, controls center, defends king.',
+    aiAdvanced: 'Level 4: Advanced (ELO ~1850)',
+    aiAdvancedDesc: 'Searches 4 ply deep with pins, forks, and tactical combos.',
+    aiMaster: 'Level 5: Grandmaster (ELO ~2200+)',
+    aiMasterDesc: 'Deep Alpha-Beta minimax engine with positional awareness.',
+
+    // Time Controls
+    timeUnlimited: 'Unlimited Time',
+    timeBullet10: 'Bullet 1 min',
+    timeBullet21: 'Bullet 2 min + 1s',
+    timeBlitz30: 'Blitz 3 min',
+    timeBlitz32: 'Blitz 3 min + 2s',
+    timeBlitz50: 'Blitz 5 min',
+    timeBlitz53: 'Blitz 5 min + 3s',
+    timeRapid100: 'Rapid 10 min',
+    timeRapid1510: 'Rapid 15 min + 10s',
+    timeClassical30: 'Classical 30 min',
+
+    // Themes
+    themeTournament: 'Tournament Green',
+    themeWood: 'Classic Woodcraft',
+    themeMidnight: 'Midnight Slate',
+    themeCharcoal: 'Minimalist Charcoal',
+    themeOcean: 'Ocean Breeze',
+
+    // Piece themes
+    pieceNeo: 'Modern Neo',
+    pieceClassic: 'Staunton Classic',
+    pieceWood: 'Vintage Wood',
+
+    // Settings
+    soundEffects: 'Sound Effects',
+    soundDescription: 'Play audio on moves, captures, checks, and time alerts',
+    showCoordinates: 'Show board coordinates (a-h, 1-8)',
+    showLegalMoves: 'Show legal move indicators',
+    highlightLastMove: 'Highlight previous move squares',
+    autoFlipBoard: 'Auto-flip board each turn (2-player mode)',
+    boardTheme: 'Board Theme',
+    pieceTheme: 'Piece Style',
+    language: 'Language',
+
+    // Setup Game Modal
+    setupTitle: 'New Game Setup',
+    selectGameMode: 'Select Game Mode',
+    selectColor: 'Play As',
+    whiteColor: 'White (First move)',
+    blackColor: 'Black (Second move)',
+    randomColor: 'Random',
+    selectDifficulty: 'Computer (AI) Difficulty',
+    selectTimeControl: 'Time Control',
+    startGame: 'Start Game',
+
+    // Promotion
+    promotePawn: 'Promote Pawn',
+    queen: 'Queen',
+    rook: 'Rook',
+    bishop: 'Bishop',
+    knight: 'Knight',
+
+    // Move Navigator
+    startMove: 'Start of game',
+    prevMove: 'Previous move',
+    nextMove: 'Next move',
+    currentMove: 'Live position',
+    reviewingHistory: 'Reviewing past move in history',
+    returnToLive: 'Return to live game',
+    exportPGN: 'Export PGN',
+    copyFEN: 'Copy FEN',
+    copiedFEN: 'FEN copied to clipboard!',
+    copiedPGN: 'PGN copied to clipboard!',
+    materialAdvantage: 'Material advantage',
+
+    // AI Coach
+    gmCoachTitle: 'Grandmaster AI Coach',
+    gmCoachSubtitle: 'Positional analysis & tactical suggestions',
+    analyzingPosition: 'Analyzing candidate moves and pawn structures...',
+    bestMoveRecommendation: 'Recommended move:',
+    tacticalReasoning: 'Tactical & Strategic Breakdown:',
+    coachError: 'Could not connect to online coach server; using local heuristic analysis.',
+    askCoachAgain: 'Re-analyze Position',
+    noMovesYet: 'No moves played yet.'
+  }
+};
+
+export function t(lang: Language, key: keyof typeof translations['en'], params?: Record<string, string | number>): string {
+  let text: string = translations[lang]?.[key] || translations['en'][key] || key;
+  if (params) {
+    Object.entries(params).forEach(([paramKey, val]) => {
+      text = text.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(val));
+    });
+  }
+  return text;
+}
