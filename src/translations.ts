@@ -128,7 +128,21 @@ export const translations = {
     tacticalReasoning: 'Phân tích thế trận & chiến lược:',
     coachError: 'Không thể kết nối đến máy chủ phân tích, đang dùng phân tích tính toán cục bộ.',
     askCoachAgain: 'Phân tích lại thế cờ này',
-    noMovesYet: 'Chưa có nước đi nào được thực hiện.'
+    noMovesYet: 'Chưa có nước đi nào được thực hiện.',
+
+    // Voice Dialogue
+    voiceDialogue: 'Đàm Thoại Trực Tiếp',
+    voiceDialogueDesc: 'Trò chuyện bằng giọng nói & tư vấn chiến thuật trực tiếp từ AI Grandmaster',
+    startSpeaking: 'Nhấn mic để nói...',
+    listening: 'Đang lắng nghe bạn...',
+    askGMPlaceholder: 'Nói hoặc nhập câu hỏi về thế cờ hiện tại...',
+    voiceAutoSpeak: 'Tự động phát giọng nói AI',
+    clearChat: 'Xóa hội thoại',
+    quickPrompt1: 'Tôi nên đi nước nào tối ưu nhất?',
+    quickPrompt2: 'Đánh giá thế cờ hiện tại',
+    quickPrompt3: 'Tôi nên xây dựng kế hoạch tấn công nào?',
+    quickPrompt4: 'Đối phương đang có đòn đe dọa gì?',
+    voiceNotSupported: 'Trình duyệt không hỗ trợ nhận diện giọng nói; bạn có thể gõ tin nhắn trực tiếp.'
   },
   en: {
     appTitle: 'GrandMaster Chess',
@@ -257,7 +271,21 @@ export const translations = {
     tacticalReasoning: 'Tactical & Strategic Breakdown:',
     coachError: 'Could not connect to online coach server; using local heuristic analysis.',
     askCoachAgain: 'Re-analyze Position',
-    noMovesYet: 'No moves played yet.'
+    noMovesYet: 'No moves played yet.',
+
+    // Voice Dialogue
+    voiceDialogue: 'Voice & AI Dialogue',
+    voiceDialogueDesc: 'Spoken dialogue & live tactical consultation with Grandmaster AI',
+    startSpeaking: 'Click mic to speak...',
+    listening: 'Listening to your voice...',
+    askGMPlaceholder: 'Speak or type your question about this position...',
+    voiceAutoSpeak: 'Auto-speak AI responses',
+    clearChat: 'Clear chat',
+    quickPrompt1: 'What is my best move here?',
+    quickPrompt2: 'Evaluate the current position',
+    quickPrompt3: 'What attacking plan should I pursue?',
+    quickPrompt4: 'What threats does my opponent have?',
+    voiceNotSupported: 'Speech recognition is not supported in this browser; you can type directly.'
   }
 };
 

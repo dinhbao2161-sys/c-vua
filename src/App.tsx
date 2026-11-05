@@ -1,864 +1,809 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import React, { useState, useEffect } from 'react';
+import {
+  Phone,
+  Shield,
+  ShieldCheck,
+  ShieldAlert,
+  Search,
+  UserCheck,
+  Globe,
+  Bell,
+  BellRing,
+  Volume2,
+  PhoneOff,
+  History,
+  BookOpen,
+  Smartphone,
+  Sparkles,
+  PhoneCall,
+  User,
+  Settings as SettingsIcon,
+  Sun,
+  Moon,
+  ChevronRight,
+  Play,
+  Heart,
+  AlertTriangle,
+  Zap,
+  Flame,
+  Radio
+} from 'lucide-react';
+import {
+  CallShieldSettings,
+  PrefixRule,
+  ContactItem,
+  CallRecord,
+  SimulatorScenario,
+  SosAlarmTriggerInfo,
+} from './types/callShield';
+import {
+  INITIAL_SETTINGS,
+  DEFAULT_PREFIX_RULES,
+  TRUSTED_CONTACTS,
+  INITIAL_CALL_HISTORY,
+  SIMULATOR_SCENARIOS,
+} from './data/mockData';
+import { IosSwitch } from './components/IosSwitch';
+import { IosGroupCell } from './components/IosGroupCell';
+import { LiquidGlassCard } from './components/LiquidGlassCard';
+import { CallSimulatorModal } from './components/CallSimulatorModal';
+import { SocialScannerModal } from './components/SocialScannerModal';
+import { PrefixManagerModal } from './components/PrefixManagerModal';
+import { CallHistoryModal } from './components/CallHistoryModal';
+import { GuardianSettingsModal } from './components/GuardianSettingsModal';
+import { SeniorGuideModal } from './components/SeniorGuideModal';
+import { EmergencyAlarmModal } from './components/EmergencyAlarmModal';
+import { SosRemoteSettingsModal } from './components/SosRemoteSettingsModal';
+import { soundController } from './utils/soundEffects';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Chess, Square } from 'chess.js';
-import { 
-  AIDifficulty, 
-  BoardThemeId, 
-  GameMode, 
-  GameResult, 
-  Language, 
-  MoveRecord, 
-  PieceThemeId, 
-  PlayerColor 
-} from './types/chess';
-import { TIME_CONTROLS } from './chess/themes';
-import { t } from './translations';
-import { soundEngine } from './utils/audio';
-import { getAIMove, getPositionEvaluation } from './chess/ai';
-
-// Components
-import { Chessboard } from './components/Chessboard';
-import { ChessClock } from './components/ChessClock';
-import { CapturedPieces } from './components/CapturedPieces';
-import { EvalBar } from './components/EvalBar';
-import { MoveHistory } from './components/MoveHistory';
-import { GameControls } from './components/GameControls';
-import { NewGameModal } from './components/NewGameModal';
-import { SettingsModal } from './components/SettingsModal';
-import { GameOverModal } from './components/GameOverModal';
-import { CoachModal } from './components/CoachModal';
-
-// Icons
-import { Crown, Sparkles, Volume2, VolumeX, Shield, Award } from 'lucide-react';
-
-export default function App() {
-  // --- Game Engine Instance ---
-  const [game, setGame] = useState<Chess>(() => new Chess());
-
-  // --- Game Configurations ---
-  const [mode, setMode] = useState<GameMode>('ai');
-  const [playerColor, setPlayerColor] = useState<PlayerColor>('w');
-  const [boardOrientation, setBoardOrientation] = useState<PlayerColor>('w');
-  const [aiDifficulty, setAiDifficulty] = useState<AIDifficulty>(3);
-  const [timeControlId, setTimeControlId] = useState<string>('rapid_10_0');
-
-  // --- Clock & Timer State ---
-  const [whiteTime, setWhiteTime] = useState<number>(600);
-  const [blackTime, setBlackTime] = useState<number>(600);
-  const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // --- Move Records & History Navigation ---
-  const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
-
-  // --- UI Indicators ---
-  const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
-  const [hintMove, setHintMove] = useState<{ from: string; to: string } | null>(null);
-  const [isAiThinking, setIsAiThinking] = useState<boolean>(false);
-
-  // --- Captured Pieces & Material Calculation ---
-  const [capturedWhite, setCapturedWhite] = useState<string[]>([]);
-  const [capturedBlack, setCapturedBlack] = useState<string[]>([]);
-  const [whiteMaterialDelta, setWhiteMaterialDelta] = useState<number>(0);
-  const [blackMaterialDelta, setBlackMaterialDelta] = useState<number>(0);
-
-  // --- Evaluation State ---
-  const [evalScore, setEvalScore] = useState<number>(0);
-  const [whiteWinChance, setWhiteWinChance] = useState<number>(50);
-
-  // --- Game Result & Modals ---
-  const [gameResult, setGameResult] = useState<GameResult | null>(null);
-  const [isGameOverModalOpen, setIsGameOverModalOpen] = useState<boolean>(false);
-  const [isNewGameModalOpen, setIsNewGameModalOpen] = useState<boolean>(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
-  const [isCoachModalOpen, setIsCoachModalOpen] = useState<boolean>(false);
-
-  // --- Copy Notifications ---
-  const [fenCopied, setFenCopied] = useState<boolean>(false);
-  const [pgnCopied, setPgnCopied] = useState<boolean>(false);
-
-  // --- Customization Settings ---
-  const [boardTheme, setBoardTheme] = useState<BoardThemeId>(() => {
-    return (localStorage.getItem('chess_board_theme') as BoardThemeId) || 'tournament';
-  });
-  const [pieceTheme, setPieceTheme] = useState<PieceThemeId>(() => {
-    return (localStorage.getItem('chess_piece_theme') as PieceThemeId) || 'neo';
-  });
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => {
-    return localStorage.getItem('chess_sound') !== 'false';
-  });
-  const [showCoordinates, setShowCoordinates] = useState<boolean>(() => {
-    return localStorage.getItem('chess_coords') !== 'false';
-  });
-  const [showLegalMoves, setShowLegalMoves] = useState<boolean>(() => {
-    return localStorage.getItem('chess_legal_moves') !== 'false';
-  });
-  const [highlightLastMove, setHighlightLastMove] = useState<boolean>(() => {
-    return localStorage.getItem('chess_highlight_last') !== 'false';
-  });
-  const [autoFlipBoard, setAutoFlipBoard] = useState<boolean>(false);
-  const [lang, setLang] = useState<Language>(() => {
-    return (localStorage.getItem('chess_lang') as Language) || 'vi';
-  });
-
-  // Keep audio manager in sync with user preference
-  useEffect(() => {
-    soundEngine.setMuted(!soundEnabled);
-  }, [soundEnabled]);
-
-  // Recalculate captured pieces & material difference
-  const updateMaterial = useCallback((chessInstance: Chess) => {
-    const pieceValues: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
-    const startingCounts: Record<string, number> = { p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 };
-
-    const currentWhiteCounts: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 };
-    const currentBlackCounts: Record<string, number> = { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 };
-
-    const board = chessInstance.board();
-    for (let r = 0; r < 8; r++) {
-      for (let c = 0; c < 8; c++) {
-        const piece = board[r][c];
-        if (piece) {
-          if (piece.color === 'w') {
-            currentWhiteCounts[piece.type] = (currentWhiteCounts[piece.type] || 0) + 1;
-          } else {
-            currentBlackCounts[piece.type] = (currentBlackCounts[piece.type] || 0) + 1;
-          }
-        }
-      }
-    }
-
-    // Pieces captured by White (missing Black pieces)
-    const capturedByWhite: string[] = [];
-    let whiteTotalMaterial = 0;
-    // Pieces captured by Black (missing White pieces)
-    const capturedByBlack: string[] = [];
-    let blackTotalMaterial = 0;
-
-    Object.keys(startingCounts).forEach(type => {
-      const lostWhite = startingCounts[type] - (currentWhiteCounts[type] || 0);
-      for (let i = 0; i < lostWhite; i++) {
-        capturedByBlack.push(type);
-      }
-      const lostBlack = startingCounts[type] - (currentBlackCounts[type] || 0);
-      for (let i = 0; i < lostBlack; i++) {
-        capturedByWhite.push(type);
-      }
-
-      whiteTotalMaterial += (currentWhiteCounts[type] || 0) * pieceValues[type];
-      blackTotalMaterial += (currentBlackCounts[type] || 0) * pieceValues[type];
-    });
-
-    setCapturedWhite(capturedByWhite);
-    setCapturedBlack(capturedByBlack);
-
-    const delta = whiteTotalMaterial - blackTotalMaterial;
-    setWhiteMaterialDelta(delta > 0 ? delta : 0);
-    setBlackMaterialDelta(delta < 0 ? Math.abs(delta) : 0);
-  }, []);
-
-  // Update position evaluation
-  const updateEvaluation = useCallback((chessInstance: Chess) => {
-    const evalData = getPositionEvaluation(chessInstance);
-    setEvalScore(evalData.score);
-    setWhiteWinChance(evalData.whiteWinChance);
-  }, []);
-
-  // Check Game Termination
-  const checkGameOver = useCallback((chessInstance: Chess) => {
-    if (chessInstance.isCheckmate()) {
-      const winner = chessInstance.turn() === 'w' ? 'b' : 'w';
-      const result: GameResult = {
-        winner,
-        reason: 'checkmate',
-        messageKey: 'checkmate'
-      };
-      setGameResult(result);
-      setIsGameOverModalOpen(true);
-      setIsTimerRunning(false);
-      soundEngine.playWin();
-      return true;
-    }
-
-    if (chessInstance.isDraw()) {
-      let reason: GameResult['reason'] = 'stalemate';
-      if (chessInstance.isStalemate()) reason = 'stalemate';
-      else if (chessInstance.isThreefoldRepetition()) reason = 'threefold_repetition';
-      else if (chessInstance.isInsufficientMaterial()) reason = 'insufficient_material';
-      else reason = 'fifty_moves';
-
-      const result: GameResult = {
-        winner: 'draw',
-        reason,
-        messageKey: reason
-      };
-      setGameResult(result);
-      setIsGameOverModalOpen(true);
-      setIsTimerRunning(false);
-      soundEngine.playGameOver();
-      return true;
-    }
-
-    return false;
-  }, []);
-
-  // Stop Timer
-  const stopTimer = () => {
-    setIsTimerRunning(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
-  // Clock Countdown Timer Interval
-  useEffect(() => {
-    const tc = TIME_CONTROLS.find(t => t.id === timeControlId);
-    if (!tc || tc.baseSeconds === 0) return; // Unlimited time
-
-    if (isTimerRunning && !gameResult) {
-      timerRef.current = setInterval(() => {
-        const turn = game.turn();
-        if (turn === 'w') {
-          setWhiteTime(prev => {
-            if (prev <= 1) {
-              // White ran out of time -> Black wins
-              stopTimer();
-              const result: GameResult = {
-                winner: 'b',
-                reason: 'timeout',
-                messageKey: 'timeOut'
-              };
-              setGameResult(result);
-              setIsGameOverModalOpen(true);
-              soundEngine.playGameOver();
-              return 0;
-            }
-            if (prev <= 10) soundEngine.playTimeWarning();
-            return prev - 1;
-          });
-        } else {
-          setBlackTime(prev => {
-            if (prev <= 1) {
-              // Black ran out of time -> White wins
-              stopTimer();
-              const result: GameResult = {
-                winner: 'w',
-                reason: 'timeout',
-                messageKey: 'timeOut'
-              };
-              setGameResult(result);
-              setIsGameOverModalOpen(true);
-              soundEngine.playGameOver();
-              return 0;
-            }
-            if (prev <= 10) soundEngine.playTimeWarning();
-            return prev - 1;
-          });
-        }
-      }, 1000);
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [isTimerRunning, gameResult, game, timeControlId]);
-
-  // Execute Move
-  const handleMakeMove = useCallback(
-    (from: Square, to: Square, promotion?: 'q' | 'r' | 'b' | 'n') => {
-      if (gameResult) return;
-
-      try {
-        const move = game.move({
-          from,
-          to,
-          promotion: promotion || 'q'
-        });
-
-        if (!move) return;
-
-        // Sound effect based on move characteristics
-        if (game.isCheckmate() || game.inCheck()) {
-          soundEngine.playCheck();
-        } else if (move.captured) {
-          soundEngine.playCapture();
-        } else if (move.san === 'O-O' || move.san === 'O-O-O') {
-          soundEngine.playCastle();
-        } else {
-          soundEngine.playMove();
-        }
-
-        // Add increment to the player who just moved
-        const tc = TIME_CONTROLS.find(t => t.id === timeControlId);
-        if (tc && tc.incrementSeconds > 0) {
-          if (move.color === 'w') {
-            setWhiteTime(prev => prev + tc.incrementSeconds);
-          } else {
-            setBlackTime(prev => prev + tc.incrementSeconds);
-          }
-        }
-
-        // Start clock on first move
-        if (!isTimerRunning && tc && tc.baseSeconds > 0) {
-          setIsTimerRunning(true);
-        }
-
-        // Record move
-        const newRecord: MoveRecord = {
-          moveNumber: Math.floor(moveHistory.length / 2) + 1,
-          san: move.san,
-          from: move.from,
-          to: move.to,
-          piece: move.piece,
-          color: move.color,
-          captured: move.captured,
-          promotion: move.promotion,
-          fen: game.fen()
+export function App() {
+  // Application State
+  const [settings, setSettings] = useState<CallShieldSettings>(() => {
+    try {
+      const saved = localStorage.getItem('callshield_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...INITIAL_SETTINGS,
+          ...parsed,
+          emergencyContacts:
+            Array.isArray(parsed.emergencyContacts) && parsed.emergencyContacts.length > 0
+              ? parsed.emergencyContacts
+              : INITIAL_SETTINGS.emergencyContacts,
+          sosTriggerKeywords:
+            Array.isArray(parsed.sosTriggerKeywords) && parsed.sosTriggerKeywords.length > 0
+              ? parsed.sosTriggerKeywords
+              : INITIAL_SETTINGS.sosTriggerKeywords,
+          remoteSosEnabled:
+            typeof parsed.remoteSosEnabled === 'boolean'
+              ? parsed.remoteSosEnabled
+              : INITIAL_SETTINGS.remoteSosEnabled,
+          overrideDoNotDisturb:
+            typeof parsed.overrideDoNotDisturb === 'boolean'
+              ? parsed.overrideDoNotDisturb
+              : INITIAL_SETTINGS.overrideDoNotDisturb,
+          sosTriggerCallRepeats:
+            parsed.sosTriggerCallRepeats || INITIAL_SETTINGS.sosTriggerCallRepeats,
         };
-
-        const updatedHistory = [...moveHistory, newRecord];
-        setMoveHistory(updatedHistory);
-        setHistoryIndex(updatedHistory.length - 1);
-        setLastMove({ from: move.from, to: move.to });
-        setHintMove(null);
-
-        // Update board state copy to trigger re-renders
-        const newGame = new Chess(game.fen());
-        setGame(newGame);
-
-        // Update analytics
-        updateMaterial(newGame);
-        updateEvaluation(newGame);
-
-        // Auto flip board in 2-player mode if turned on
-        if (mode === 'pass_and_play' && autoFlipBoard) {
-          setBoardOrientation(newGame.turn());
-        }
-
-        // Check if game over
-        checkGameOver(newGame);
-      } catch (err) {
-        console.error('Move error:', err);
       }
-    },
-    [
-      game,
-      gameResult,
-      timeControlId,
-      isTimerRunning,
-      moveHistory,
-      updateMaterial,
-      updateEvaluation,
-      mode,
-      autoFlipBoard,
-      checkGameOver
-    ]
-  );
+      return INITIAL_SETTINGS;
+    } catch {
+      return INITIAL_SETTINGS;
+    }
+  });
 
-  // Trigger AI move when it's AI's turn
+  const [prefixRules, setPrefixRules] = useState<PrefixRule[]>(() => {
+    try {
+      const saved = localStorage.getItem('callshield_prefixes');
+      return saved ? JSON.parse(saved) : DEFAULT_PREFIX_RULES;
+    } catch {
+      return DEFAULT_PREFIX_RULES;
+    }
+  });
+
+  const [callHistory, setCallHistory] = useState<CallRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('callshield_history');
+      return saved ? JSON.parse(saved) : INITIAL_CALL_HISTORY;
+    } catch {
+      return INITIAL_CALL_HISTORY;
+    }
+  });
+
+  const [trustedContacts, setTrustedContacts] = useState<ContactItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('callshield_contacts');
+      return saved ? JSON.parse(saved) : TRUSTED_CONTACTS;
+    } catch {
+      return TRUSTED_CONTACTS;
+    }
+  });
+
+  // UI Navigation & Modals
+  const [activeModal, setActiveModal] = useState<
+    'none' | 'simulator' | 'social_scanner' | 'prefix_manager' | 'history' | 'guardian' | 'guide' | 'sos_remote_settings'
+  >('none');
+  const [activeScenario, setActiveScenario] = useState<SimulatorScenario>(SIMULATOR_SCENARIOS[0]);
+  const [activeAlarmInfo, setActiveAlarmInfo] = useState<SosAlarmTriggerInfo | null>(null);
+  const [viewMode, setViewMode] = useState<'iphone_frame' | 'expanded'>('expanded');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [notificationToast, setNotificationToast] = useState<string | null>(null);
+
+  // Sync state to local storage
   useEffect(() => {
-    if (mode !== 'ai' || gameResult || isAiThinking) return;
+    localStorage.setItem('callshield_settings', JSON.stringify(settings));
+  }, [settings]);
 
-    const isAiTurn = game.turn() !== playerColor;
-    if (isAiTurn) {
-      setIsAiThinking(true);
+  useEffect(() => {
+    localStorage.setItem('callshield_prefixes', JSON.stringify(prefixRules));
+  }, [prefixRules]);
 
-      // Add a slight natural delay so the computer doesn't feel robotic
-      const thinkDelay = aiDifficulty <= 2 ? 350 : 600;
+  useEffect(() => {
+    localStorage.setItem('callshield_history', JSON.stringify(callHistory));
+  }, [callHistory]);
 
-      const timer = setTimeout(async () => {
-        try {
-          const aiMove = await getAIMove(game, aiDifficulty);
-          if (aiMove) {
-            handleMakeMove(
-              aiMove.from as Square,
-              aiMove.to as Square,
-              (aiMove.promotion as 'q' | 'r' | 'b' | 'n') || undefined
-            );
-          }
-        } catch (err) {
-          console.error('AI move error:', err);
-        } finally {
-          setIsAiThinking(false);
-        }
-      }, thinkDelay);
-
-      return () => clearTimeout(timer);
-    }
-  }, [game, mode, playerColor, gameResult, aiDifficulty, isAiThinking, handleMakeMove]);
-
-  // Handle Board History Reviewing
-  const handleSelectHistoryMove = (index: number) => {
-    setHistoryIndex(index);
-    if (index === -1) {
-      // Starting board
-      setGame(new Chess());
-      setLastMove(null);
+  // Dark mode effect
+  useEffect(() => {
+    if (settings.darkMode) {
+      document.documentElement.classList.add('dark');
     } else {
-      const record = moveHistory[index];
-      if (record) {
-        setGame(new Chess(record.fen));
-        setLastMove({ from: record.from, to: record.to });
-      }
+      document.documentElement.classList.remove('dark');
     }
+  }, [settings.darkMode]);
+
+  const showToast = (msg: string) => {
+    setNotificationToast(msg);
+    setTimeout(() => setNotificationToast(null), 3000);
   };
 
-  // Undo (Takeback)
-  const handleUndo = () => {
-    if (moveHistory.length === 0 || gameResult) return;
-
-    const newGame = new Chess();
-    // If playing vs AI, undo 2 moves (AI move and player move)
-    const undoCount = mode === 'ai' && game.turn() === playerColor ? 2 : 1;
-    const targetLength = Math.max(0, moveHistory.length - undoCount);
-
-    const remainingMoves = moveHistory.slice(0, targetLength);
-    for (const record of remainingMoves) {
-      newGame.move({
-        from: record.from,
-        to: record.to,
-        promotion: record.promotion
-      });
-    }
-
-    setGame(newGame);
-    setMoveHistory(remainingMoves);
-    setHistoryIndex(remainingMoves.length - 1);
-    setHintMove(null);
-
-    if (remainingMoves.length > 0) {
-      const last = remainingMoves[remainingMoves.length - 1];
-      setLastMove({ from: last.from, to: last.to });
-    } else {
-      setLastMove(null);
-    }
-
-    updateMaterial(newGame);
-    updateEvaluation(newGame);
-    soundEngine.playMove();
+  const updateSetting = <K extends keyof CallShieldSettings>(key: K, value: CallShieldSettings[K]) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    showToast('Đã lưu thay đổi cài đặt');
   };
 
-  // Hint Generator
-  const handleHint = () => {
-    const evalData = getPositionEvaluation(game);
-    if (evalData.bestMove) {
-      setHintMove({ from: evalData.bestMove.from, to: evalData.bestMove.to });
-      soundEngine.playMove();
-    }
+  const handleTogglePrefix = (id: string, blocked: boolean) => {
+    setPrefixRules((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, blocked } : r))
+    );
+    showToast(blocked ? 'Đã kích hoạt chặn đầu số' : 'Đã bỏ chặn đầu số');
   };
 
-  // Resign
-  const handleResign = () => {
-    if (gameResult) return;
-    const winner: PlayerColor = game.turn() === 'w' ? 'b' : 'w';
-    const result: GameResult = {
-      winner,
-      reason: 'resignation',
-      messageKey: 'resignedMessage'
+  const handleAddPrefix = (newRule: Omit<PrefixRule, 'id' | 'reportCount'>) => {
+    const item: PrefixRule = {
+      ...newRule,
+      id: `custom-${Date.now()}`,
+      reportCount: 1,
     };
-    setGameResult(result);
-    setIsGameOverModalOpen(true);
-    stopTimer();
-    soundEngine.playGameOver();
+    setPrefixRules((prev) => [item, ...prev]);
+    showToast(`Đã thêm đầu số ${item.prefix}`);
   };
 
-  // Offer Draw
-  const handleOfferDraw = () => {
-    if (gameResult) return;
-    const result: GameResult = {
-      winner: 'draw',
-      reason: 'draw_agreement',
-      messageKey: 'drawAgreed'
-    };
-    setGameResult(result);
-    setIsGameOverModalOpen(true);
-    stopTimer();
-    soundEngine.playGameOver();
+  const handleDeletePrefix = (id: string) => {
+    setPrefixRules((prev) => prev.filter((r) => r.id !== id));
+    showToast('Đã xóa quy tắc đầu số');
   };
 
-  // Start New Game Setup
-  const handleStartNewGame = (config: {
-    mode: GameMode;
-    playerColor: PlayerColor;
-    aiDifficulty: AIDifficulty;
-    timeControlId: string;
-  }) => {
-    const newGame = new Chess();
-    setGame(newGame);
-    setMode(config.mode);
-    setPlayerColor(config.playerColor);
-    setBoardOrientation(config.playerColor);
-    setAiDifficulty(config.aiDifficulty);
-    setTimeControlId(config.timeControlId);
-
-    const tc = TIME_CONTROLS.find(t => t.id === config.timeControlId);
-    const initialTime = tc?.baseSeconds || 0;
-    setWhiteTime(initialTime);
-    setBlackTime(initialTime);
-    setIsTimerRunning(false);
-
-    setMoveHistory([]);
-    setHistoryIndex(-1);
-    setLastMove(null);
-    setHintMove(null);
-    setGameResult(null);
-    setIsGameOverModalOpen(false);
-
-    updateMaterial(newGame);
-    updateEvaluation(newGame);
-    soundEngine.playMove();
+  const handleCallEnded = (record: CallRecord) => {
+    setCallHistory((prev) => [record, ...prev]);
+    showToast(`Đã lưu bản ghi can thiệp: ${record.callerName}`);
   };
 
-  // Rematch with identical settings
-  const handleRematch = () => {
-    handleStartNewGame({
-      mode,
-      playerColor: mode === 'ai' ? (playerColor === 'w' ? 'b' : 'w') : 'w', // Swap colors on rematch
-      aiDifficulty,
-      timeControlId
+  const handleLaunchScenario = (scen: SimulatorScenario) => {
+    setActiveScenario(scen);
+    setActiveModal('simulator');
+  };
+
+  // Senior Trigger 2-Way SOS Alarm
+  const handleSeniorTriggerSos = () => {
+    setActiveAlarmInfo({
+      triggeredBy: 'senior',
+      senderName: settings.elderlyName,
+      senderPhone: '',
+      triggerMethod: 'manual_button',
+      time: 'Vừa xong',
     });
   };
 
-  // Copy FEN & PGN
-  const handleCopyFEN = () => {
-    navigator.clipboard.writeText(game.fen());
-    setFenCopied(true);
-    setTimeout(() => setFenCopied(false), 2000);
-  };
-
-  const handleCopyPGN = () => {
-    navigator.clipboard.writeText(game.pgn());
-    setPgnCopied(true);
-    setTimeout(() => setPgnCopied(false), 2000);
-  };
-
-  // Settings persistence
-  const handleSelectBoardTheme = (id: BoardThemeId) => {
-    setBoardTheme(id);
-    localStorage.setItem('chess_board_theme', id);
-  };
-
-  const handleSelectPieceTheme = (id: PieceThemeId) => {
-    setPieceTheme(id);
-    localStorage.setItem('chess_piece_theme', id);
-  };
-
-  const handleToggleSound = () => {
-    const next = !soundEnabled;
-    setSoundEnabled(next);
-    localStorage.setItem('chess_sound', String(next));
-  };
-
-  const handleToggleCoords = () => {
-    const next = !showCoordinates;
-    setShowCoordinates(next);
-    localStorage.setItem('chess_coords', String(next));
-  };
-
-  const handleToggleLegalMoves = () => {
-    const next = !showLegalMoves;
-    setShowLegalMoves(next);
-    localStorage.setItem('chess_legal_moves', String(next));
-  };
-
-  const handleToggleHighlightLast = () => {
-    const next = !highlightLastMove;
-    setHighlightLastMove(next);
-    localStorage.setItem('chess_highlight_last', String(next));
-  };
-
-  const handleToggleAutoFlip = () => {
-    setAutoFlipBoard(!autoFlipBoard);
-  };
-
-  const handleSelectLang = (newLang: Language) => {
-    setLang(newLang);
-    localStorage.setItem('chess_lang', newLang);
-  };
-
-  const isLive = historyIndex === moveHistory.length - 1;
-  const isInteractive = isLive && !gameResult && (!isAiThinking || mode !== 'ai');
-
-  // Determine top & bottom player perspectives
-  const topColor: PlayerColor = boardOrientation === 'w' ? 'b' : 'w';
-  const bottomColor: PlayerColor = boardOrientation === 'w' ? 'w' : 'b';
-
-  const getPlayerLabel = (color: PlayerColor) => {
-    if (mode === 'pass_and_play') {
-      return color === 'w' ? t(lang, 'white') : t(lang, 'black');
+  const handleDismissAlarm = (safeConfirmed: boolean) => {
+    setActiveAlarmInfo(null);
+    if (safeConfirmed) {
+      showToast('Đã tắt báo động. Tín hiệu an toàn đã gửi tới gia đình.');
     }
-    if (color === playerColor) {
-      return `${t(lang, 'you')} (${color === 'w' ? t(lang, 'white') : t(lang, 'black')})`;
-    }
-    return `AI Cấp ${aiDifficulty} (${color === 'w' ? t(lang, 'white') : t(lang, 'black')})`;
   };
 
-  const getPlayerTitle = (color: PlayerColor) => {
-    if (mode === 'ai' && color !== playerColor) {
-      if (aiDifficulty === 5) return 'GM';
-      if (aiDifficulty === 4) return 'IM';
-      if (aiDifficulty === 3) return 'FM';
-      return 'BOT';
-    }
-    return undefined;
-  };
+  // Font size multiplier
+  const textSizeClass = {
+    normal: '',
+    large: 'text-[1.05rem]',
+    'extra-large': 'text-[1.18rem]',
+  }[settings.seniorTextSize];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-black">
-      {/* Top Application Navbar */}
-      <header className="h-14 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-30">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-600 flex items-center justify-center shadow-md shadow-amber-500/20 text-slate-950 font-black">
-            <Crown className="w-5 h-5 fill-current" />
+    <div
+      className={`min-h-screen transition-colors duration-300 ${
+        settings.darkMode
+          ? 'bg-slate-950 text-slate-100'
+          : 'bg-gradient-to-br from-slate-100 via-sky-50/40 to-slate-200/70 text-slate-900'
+      } ${textSizeClass}`}
+    >
+      {/* Dynamic Background Liquid Orbs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <div className="absolute top-[-10%] left-[-5%] w-[45vw] h-[45vw] rounded-full liquid-glow blur-[90px] opacity-70 animate-pulse duration-1000" />
+        <div className="absolute top-[40%] right-[-10%] w-[40vw] h-[40vw] rounded-full liquid-accent-amber blur-[100px] opacity-50" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[50vw] h-[50vw] rounded-full liquid-accent-emerald blur-[110px] opacity-45" />
+      </div>
+
+      {/* Top Bar Contract (3 zones) */}
+      <header className="sticky top-0 z-40 w-full backdrop-blur-xl bg-white/75 dark:bg-slate-900/75 border-b border-slate-200/80 dark:border-slate-800/80 transition-colors">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+          {/* Zone 1: Brand single text element */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+              <Shield className="w-5 h-5" />
+            </div>
+            <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap">
+              Senior CallShield
+            </span>
           </div>
-          <div>
-            <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
-              {t(lang, 'appTitle')}
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-widest hidden sm:inline">
-                FIDE Standard
-              </span>
-            </h1>
-            <p className="text-[10px] sm:text-xs text-slate-400 truncate hidden md:block">
-              {t(lang, 'tagline')}
-            </p>
+
+          {/* Zone 2: Navigation Links */}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
+            <button
+              onClick={() => setActiveModal('sos_remote_settings')}
+              className="hover:text-red-600 dark:hover:text-red-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 font-bold text-red-600 dark:text-red-400"
+            >
+              <BellRing className="w-4 h-4 animate-wiggle" /> Báo Thức SOS Từ Xa
+            </button>
+            <button
+              onClick={() => setActiveModal('simulator')}
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            >
+              <Smartphone className="w-4 h-4 text-blue-500" /> Mô Phỏng Cuộc Gọi
+            </button>
+            <button
+              onClick={() => setActiveModal('social_scanner')}
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            >
+              <Search className="w-4 h-4 text-purple-500" /> Rà Soát Mạng Xã Hội
+            </button>
+            <button
+              onClick={() => setActiveModal('prefix_manager')}
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            >
+              <Globe className="w-4 h-4 text-orange-500" /> Nhận Dạng Đầu Số
+            </button>
+            <button
+              onClick={() => setActiveModal('history')}
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            >
+              <History className="w-4 h-4 text-emerald-500" /> Nhật Ký Chặn ({callHistory.length})
+            </button>
+            <button
+              onClick={() => setActiveModal('guide')}
+              className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            >
+              <BookOpen className="w-4 h-4 text-teal-500" /> Cẩm Nang Cho Bà
+            </button>
+          </nav>
+
+          {/* Zone 3: Quick Action */}
+          <div className="flex items-center gap-2.5 shrink-0">
+            {/* View Mode Toggle */}
+            <button
+              onClick={() =>
+                setViewMode(viewMode === 'iphone_frame' ? 'expanded' : 'iphone_frame')
+              }
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200/70 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors"
+              title="Chuyển chế độ xem Khung iPhone / Toàn màn hình"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>{viewMode === 'iphone_frame' ? 'Mở Rộng' : 'Khung iPhone'}</span>
+            </button>
+
+            {/* Dark Mode Switch */}
+            <button
+              onClick={() => updateSetting('darkMode', !settings.darkMode)}
+              className="w-9 h-9 rounded-xl bg-slate-200/70 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-300 transition-colors"
+              aria-label="Chuyển đổi giao diện sáng tối"
+            >
+              {settings.darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            </button>
+
+            {/* Simulation CTA */}
+            <button
+              onClick={() => {
+                setActiveScenario(SIMULATOR_SCENARIOS[0]);
+                setActiveModal('simulator');
+              }}
+              className="px-4 py-2 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-500 active:scale-95 transition-all shadow-md shadow-blue-600/30 whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" /> Thử Gọi Đến
+            </button>
           </div>
-        </div>
-
-        {/* Quick Top Controls */}
-        <div className="flex items-center gap-2">
-          {/* Sound Toggle */}
-          <button
-            onClick={handleToggleSound}
-            title={soundEnabled ? 'Tắt âm thanh' : 'Bật âm thanh'}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4" />}
-          </button>
-
-          {/* Language Switch */}
-          <button
-            onClick={() => handleSelectLang(lang === 'vi' ? 'en' : 'vi')}
-            title="Đổi ngôn ngữ / Change Language"
-            className="px-2.5 py-1 rounded-xl text-xs font-bold bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-colors"
-          >
-            {lang.toUpperCase()}
-          </button>
-
-          {/* New Game Button */}
-          <button
-            onClick={() => setIsNewGameModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/20 active:scale-95 transition-all"
-          >
-            <Sparkles className="w-3.5 h-3.5 fill-current" />
-            <span>{t(lang, 'newGame')}</span>
-          </button>
         </div>
       </header>
 
-      {/* Main Game Stage */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-2 sm:p-4 md:p-6 flex flex-col lg:flex-row items-center lg:items-start justify-center gap-4 lg:gap-6">
-        
-        {/* Left Side / Center: Chessboard with Clocks and Eval Bar */}
-        <div className="flex flex-col items-center w-full max-w-[560px]">
-          
-          {/* Top Player Status Bar (Clock & Captured pieces) */}
-          <div className="w-full mb-2 flex flex-col gap-1.5">
-            <ChessClock
-              color={topColor}
-              playerName={getPlayerLabel(topColor)}
-              playerTitle={getPlayerTitle(topColor)}
-              timeRemainingSeconds={topColor === 'w' ? whiteTime : blackTime}
-              isActive={game.turn() === topColor && isInteractive}
-              isUnlimited={TIME_CONTROLS.find(t => t.id === timeControlId)?.baseSeconds === 0}
+      {/* Main Container */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 md:py-8">
+        {/* Layout Wrapper: Supports iPhone Device Frame or Full Viewport */}
+        <div
+          className={`mx-auto transition-all duration-300 ${
+            viewMode === 'iphone_frame'
+              ? 'max-w-[430px] bg-slate-900 text-white rounded-[50px] p-4 shadow-2xl border-8 border-slate-800'
+              : 'max-w-4xl'
+          }`}
+        >
+          {/* Top Senior Accessibility Banner */}
+          <div className="mb-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl p-4 shadow-lg shadow-blue-500/15">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0">
+                <Heart className="w-6 h-6 fill-current text-rose-300" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-lg font-bold leading-tight">
+                    {settings.elderlyName}
+                  </h1>
+                  <span className="bg-emerald-400 text-slate-950 font-bold text-[10px] uppercase px-2 py-0.5 rounded-full">
+                    Đang Bảo Vệ
+                  </span>
+                </div>
+                <p className="text-xs text-blue-100 mt-0.5">
+                  Người giám hộ: <strong>{settings.guardianName}</strong> ({settings.guardianPhone})
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setActiveModal('guardian')}
+                className="px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-xs font-bold text-white transition-all active:scale-95 flex items-center gap-1"
+              >
+                <SettingsIcon className="w-3.5 h-3.5" /> Thiết Lập SOS
+              </button>
+              <a
+                href={`tel:${settings.emergencySOS}`}
+                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-md active:scale-95 transition-all flex items-center gap-1"
+              >
+                <PhoneCall className="w-3.5 h-3.5" /> SOS ({settings.emergencySOS})
+              </a>
+            </div>
+          </div>
+
+          {/* TWO-WAY EMERGENCY SOS BIG PANIC BUTTON FOR SENIORS */}
+          <div className="mb-6 p-4 rounded-3xl bg-gradient-to-r from-rose-600 via-red-600 to-orange-600 text-white shadow-xl shadow-red-600/25 border-2 border-red-400/40 relative overflow-hidden">
+            <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-center sm:text-left">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-white text-xs font-extrabold uppercase tracking-wide mb-1.5">
+                  <Flame className="w-3.5 h-3.5 text-amber-300 animate-bounce" /> Cứu Hộ Hai Chiều 24/7
+                </div>
+                <h3 className="text-lg sm:text-xl font-black tracking-tight leading-snug">
+                  Báo Thức Cứu Nạn Khẩn Cấp (SOS)
+                </h3>
+                <p className="text-xs text-red-100 max-w-md mt-0.5">
+                  Nhấn khi cần giúp đỡ ngay lập tức: Còi hú cực đại phát tại chỗ và gửi thông báo khẩn tới {(settings.emergencyContacts || INITIAL_SETTINGS.emergencyContacts).length} người thân.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+                <button
+                  onClick={handleSeniorTriggerSos}
+                  className="flex-1 sm:flex-initial py-3.5 px-6 rounded-2xl bg-white text-red-600 hover:bg-red-50 active:scale-95 text-sm sm:text-base font-black shadow-2xl flex items-center justify-center gap-2.5 transition-transform"
+                >
+                  <BellRing className="w-5 h-5 text-red-600 animate-wiggle" />
+                  <span>BẤM HÚ CÒI SOS CẤP CỨU</span>
+                </button>
+                <button
+                  onClick={() => setActiveModal('sos_remote_settings')}
+                  className="p-3.5 rounded-2xl bg-black/25 hover:bg-black/40 text-white active:scale-95 transition-transform shrink-0"
+                  title="Cài đặt kích hoạt từ xa"
+                >
+                  <Radio className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Senior Font Size Selector */}
+          <div className="mb-6 flex items-center justify-between gap-3 p-3 liquid-glass rounded-2xl">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span>Cỡ chữ cho mắt người cao tuổi:</span>
+            </div>
+            <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-slate-800 rounded-xl">
+              <button
+                onClick={() => updateSetting('seniorTextSize', 'normal')}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                  settings.seniorTextSize === 'normal'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Vừa
+              </button>
+              <button
+                onClick={() => updateSetting('seniorTextSize', 'large')}
+                className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
+                  settings.seniorTextSize === 'large'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Lớn (Khuyên dùng)
+              </button>
+              <button
+                onClick={() => updateSetting('seniorTextSize', 'extra-large')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${
+                  settings.seniorTextSize === 'extra-large'
+                    ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                Cực Đại
+              </button>
+            </div>
+          </div>
+
+          {/* Search bar inside Settings */}
+          <div className="mb-6 relative">
+            <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm kiếm cài đặt cuộc gọi, chặn số, báo thức SOS, AI..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/80 dark:border-slate-700/80 text-sm placeholder-slate-400 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
             />
-            <div className="px-1 flex items-center justify-between">
-              <CapturedPieces
-                color={topColor}
-                capturedList={topColor === 'w' ? capturedWhite : capturedBlack}
-                materialAdvantage={topColor === 'w' ? whiteMaterialDelta : blackMaterialDelta}
-                pieceTheme={pieceTheme}
-              />
-              {isAiThinking && topColor !== playerColor && (
-                <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1 animate-pulse">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                  AI đang tính toán...
-                </span>
-              )}
-            </div>
           </div>
 
-          {/* Board Area with Vertical Eval Bar on Desktop */}
-          <div className="relative flex items-center justify-center gap-3 w-full">
-            {/* Desktop Vertical Eval Bar */}
-            <div className="hidden sm:block h-[560px] max-h-[560px] py-1">
-              <EvalBar
-                score={evalScore}
-                whiteWinChance={whiteWinChance}
-                boardOrientation={boardOrientation}
-              />
-            </div>
+          {/* SECTION 1: BÁO THỨC SOS & CAN THIỆP CUỘC GỌI */}
+          <div className="mb-6 space-y-2">
+            <span className="px-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Báo Thức SOS & Can Thiệp Cuộc Gọi Thông Minh
+            </span>
 
-            {/* The Chessboard */}
-            <div className="flex-1 w-full flex justify-center">
-              <Chessboard
-                game={game}
-                boardOrientation={boardOrientation}
-                boardTheme={boardTheme}
-                pieceTheme={pieceTheme}
-                showCoordinates={showCoordinates}
-                showLegalMoves={showLegalMoves}
-                highlightLastMove={highlightLastMove}
-                lastMove={lastMove}
-                hintMove={hintMove}
-                isInteractive={isInteractive}
-                onMove={handleMakeMove}
+            <LiquidGlassCard className="p-0 overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/60">
+              {/* Feature 0: Remote SOS Siren */}
+              <IosGroupCell
+                icon={<BellRing className="w-5 h-5" />}
+                iconBg="bg-red-600"
+                title="Báo Thức SOS Khẩn Cấp Kích Hoạt Từ Xa"
+                subtitle={`Người thân có thể nhắn '${settings.sosTriggerKeywords?.[0] || 'SOS'}' hoặc nháy máy ${settings.sosTriggerCallRepeats || 2} lần để hú còi cực đại khi cần kiểm tra bà gấp`}
+                textSize={settings.seniorTextSize}
+                showChevron
+                onClick={() => setActiveModal('sos_remote_settings')}
+                isFirst
               />
-            </div>
+
+              {/* Feature 1: AI Screen First */}
+              <IosGroupCell
+                icon={<Shield className="w-5 h-5" />}
+                iconBg="bg-blue-600"
+                title="Trợ Lý AI Tự Động Bắt Máy Sàng Lọc"
+                subtitle="Tự động tiếp nhận cuộc gọi từ số lạ, chất vấn mục đích và phân tích giọng nói trước khi điện thoại bà đổ chuông"
+                textSize={settings.seniorTextSize}
+                rightElement={
+                  <IosSwitch
+                    checked={settings.aiScreeningEnabled}
+                    onChange={(checked) => updateSetting('aiScreeningEnabled', checked)}
+                    size="large"
+                    label="Bật AI tự động bắt máy"
+                  />
+                }
+              />
+
+              {/* Feature 2: Guardian Approval */}
+              <IosGroupCell
+                icon={<UserCheck className="w-5 h-5" />}
+                iconBg="bg-indigo-600"
+                title="Xin Phép Người Giám Hộ Trước Khi Chuông Reo"
+                subtitle="Nếu đối tượng có dấu hiệu mạo danh, hệ thống gửi thông báo hỏi ý kiến con trai (Tuấn Anh) phê duyệt"
+                textSize={settings.seniorTextSize}
+                rightElement={
+                  <IosSwitch
+                    checked={settings.guardianApprovalRequired}
+                    onChange={(checked) => updateSetting('guardianApprovalRequired', checked)}
+                    size="large"
+                    label="Yêu cầu con trai duyệt"
+                  />
+                }
+              />
+
+              {/* Feature 3: Auto Hangup Scam Keywords */}
+              <IosGroupCell
+                icon={<PhoneOff className="w-5 h-5" />}
+                iconBg="bg-rose-600"
+                title="Tự Động Cúp Máy Khi Phát Hiện Từ Khóa Lừa Đảo"
+                subtitle="Ngắt cuộc gọi ngay lập tức khi nghe thấy 'Bộ Công An', 'chuyển tiền ngay', 'đọc mã OTP'"
+                textSize={settings.seniorTextSize}
+                rightElement={
+                  <IosSwitch
+                    checked={settings.autoHangupScamWords}
+                    onChange={(checked) => updateSetting('autoHangupScamWords', checked)}
+                    size="large"
+                    label="Tự cúp máy từ khóa lừa đảo"
+                  />
+                }
+              />
+
+              {/* Feature 4: Voice Announce */}
+              <IosGroupCell
+                icon={<Volume2 className="w-5 h-5" />}
+                iconBg="bg-emerald-600"
+                title="Đọc Tên & Số Người Gọi Bằng Giọng Nói Lớn"
+                subtitle="Loa ngoài phát âm thanh tiếng Việt thông báo rõ ràng: ai đang gọi và mức độ an toàn"
+                textSize={settings.seniorTextSize}
+                rightElement={
+                  <IosSwitch
+                    checked={settings.voiceAnnounceCaller}
+                    onChange={(checked) => updateSetting('voiceAnnounceCaller', checked)}
+                    size="large"
+                    label="Đọc to tên người gọi"
+                  />
+                }
+              />
+
+              {/* Feature 5: High Volume Siren Warning */}
+              <IosGroupCell
+                icon={<Bell className="w-5 h-5" />}
+                iconBg="bg-amber-600"
+                title="Cảnh Báo Âm Lượng Báo Động Khi Phát Hiện Nguy Cơ"
+                subtitle="Phát âm thanh còi hú đặc biệt để người cao tuổi cảnh giác không làm theo lời kẻ xấu"
+                textSize={settings.seniorTextSize}
+                rightElement={
+                  <IosSwitch
+                    checked={settings.highVolumeWarning}
+                    onChange={(checked) => updateSetting('highVolumeWarning', checked)}
+                    size="large"
+                    label="Báo động âm lượng lớn"
+                  />
+                }
+                isLast
+              />
+            </LiquidGlassCard>
           </div>
 
-          {/* Mobile Horizontal Eval Bar */}
-          <div className="w-full sm:hidden mt-2 px-1">
-            <EvalBar
-              score={evalScore}
-              whiteWinChance={whiteWinChance}
-              boardOrientation={boardOrientation}
-              isHorizontal={true}
-            />
-          </div>
-
-          {/* Bottom Player Status Bar (Clock & Captured pieces) */}
-          <div className="w-full mt-2 flex flex-col gap-1.5">
-            <div className="px-1 flex items-center justify-between">
-              <CapturedPieces
-                color={bottomColor}
-                capturedList={bottomColor === 'w' ? capturedWhite : capturedBlack}
-                materialAdvantage={bottomColor === 'w' ? whiteMaterialDelta : blackMaterialDelta}
-                pieceTheme={pieceTheme}
-              />
-              {game.inCheck() && (
-                <span className="text-xs font-black text-red-500 uppercase tracking-wider animate-pulse flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5 fill-current" />
-                  {t(lang, 'check')}
-                </span>
-              )}
-            </div>
-            <ChessClock
-              color={bottomColor}
-              playerName={getPlayerLabel(bottomColor)}
-              playerTitle={getPlayerTitle(bottomColor)}
-              timeRemainingSeconds={bottomColor === 'w' ? whiteTime : blackTime}
-              isActive={game.turn() === bottomColor && isInteractive}
-              isUnlimited={TIME_CONTROLS.find(t => t.id === timeControlId)?.baseSeconds === 0}
-            />
-          </div>
-        </div>
-
-        {/* Right Side: Move History, Tactical Tools & Control Panel */}
-        <div className="w-full lg:w-[380px] flex flex-col gap-3.5 h-full min-h-[480px]">
-          {/* Quick Stats Header */}
-          <div className="p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 shadow-md flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-400" />
-              <span className="text-xs font-semibold text-slate-300">
-                {mode === 'ai' ? `Chế độ: Đấu AI (${aiDifficulty}/5)` : 'Chế độ: 2 Người'}
+          {/* SECTION 2: BỘ MÔ PHỎNG & LUYỆN TẬP PHÒNG CHỐNG LỪA ĐẢO */}
+          <div className="mb-6 space-y-2">
+            <div className="px-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Thực Hành Phòng Tránh (Bộ Mô Phỏng Cuộc Gọi Đến)
+              </span>
+              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                4 Kịch bản thực tế
               </span>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">
-                {TIME_CONTROLS.find(t => t.id === timeControlId)?.name || 'Standard'}
-              </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {SIMULATOR_SCENARIOS.map((scen) => (
+                <div
+                  key={scen.id}
+                  onClick={() => handleLaunchScenario(scen)}
+                  className="p-4 rounded-2xl liquid-glass border border-white/60 dark:border-white/10 hover:shadow-lg active:scale-[0.98] cursor-pointer transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                          scen.riskLevel === 'danger'
+                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300'
+                            : scen.riskLevel === 'warning'
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300'
+                            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300'
+                        }`}
+                      >
+                        {scen.category}
+                      </span>
+                      <span className="text-xs font-mono font-medium text-slate-400">
+                        {scen.callerNumber}
+                      </span>
+                    </div>
+
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 mb-1">
+                      {scen.title}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                      {scen.description}
+                    </p>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between text-xs font-bold text-blue-600 dark:text-blue-400">
+                    <span className="flex items-center gap-1">
+                      <Play className="w-3.5 h-3.5 fill-current" /> Bắt đầu cuộc gọi thử
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-slate-400" />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Primary Action Buttons */}
-          <GameControls
-            onNewGame={() => setIsNewGameModalOpen(true)}
-            onUndo={handleUndo}
-            canUndo={moveHistory.length > 0}
-            onHint={handleHint}
-            onAskCoach={() => setIsCoachModalOpen(true)}
-            onFlipBoard={() => setBoardOrientation(prev => (prev === 'w' ? 'b' : 'w'))}
-            onResign={handleResign}
-            onOfferDraw={handleOfferDraw}
-            onOpenSettings={() => setIsSettingsModalOpen(true)}
-            gameMode={mode}
-            isGameOver={!!gameResult}
-            lang={lang}
-          />
+          {/* SECTION 3: NHẬN DẠNG ĐẦU SỐ & MẠNG XÃ HỘI */}
+          <div className="mb-6 space-y-2">
+            <span className="px-4 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Nhận Dạng Đầu Số & Rà Soát Mạng Xã Hội
+            </span>
 
-          {/* Move History Component */}
-          <div className="flex-1 min-h-[300px]">
-            <MoveHistory
-              moves={moveHistory}
-              currentMoveIndex={historyIndex}
-              onSelectMove={handleSelectHistoryMove}
-              lang={lang}
-              onCopyFEN={handleCopyFEN}
-              onCopyPGN={handleCopyPGN}
-              fenCopied={fenCopied}
-              pgnCopied={pgnCopied}
-            />
+            <LiquidGlassCard className="p-0 overflow-hidden divide-y divide-slate-200/60 dark:divide-slate-800/60">
+              {/* Scan Tool */}
+              <IosGroupCell
+                icon={<Search className="w-5 h-5" />}
+                iconBg="bg-purple-600"
+                title="Rà Soát Tài Khoản & Đường Link Nghi Vấn"
+                subtitle="Quét nhanh số điện thoại lạ, link Zalo mạo danh cán bộ, Facebook người thân mượn tiền, Telegram đầu tư ảo"
+                textSize={settings.seniorTextSize}
+                showChevron
+                onClick={() => setActiveModal('social_scanner')}
+                isFirst
+              />
+
+              {/* Prefix Manager */}
+              <IosGroupCell
+                icon={<Globe className="w-5 h-5" />}
+                iconBg="bg-orange-500"
+                title="Cơ Sở Dữ Liệu Đầu Số Lừa Đảo (+224, 02499...)"
+                subtitle={`Đang kích hoạt ${prefixRules.filter((r) => r.blocked).length}/${prefixRules.length} quy tắc chặn mã vùng quốc tế & tổng đài ảo`}
+                textSize={settings.seniorTextSize}
+                showChevron
+                onClick={() => setActiveModal('prefix_manager')}
+              />
+
+              {/* Call History */}
+              <IosGroupCell
+                icon={<History className="w-5 h-5" />}
+                iconBg="bg-teal-600"
+                title="Nhật Ký Cuộc Gọi Đã Can Thiệp"
+                subtitle={`${callHistory.length} cuộc gọi đã được ghi âm và tóm tắt lời thoại`}
+                value={`${callHistory.filter((c) => c.status === 'blocked').length} Đã Chặn`}
+                textSize={settings.seniorTextSize}
+                showChevron
+                onClick={() => setActiveModal('history')}
+              />
+
+              {/* Senior Guide */}
+              <IosGroupCell
+                icon={<BookOpen className="w-5 h-5" />}
+                iconBg="bg-emerald-600"
+                title="Cẩm Nang Nghe Máy An Toàn (Đọc To Cho Bà)"
+                subtitle="3 nguyên tắc vàng không bao giờ bị lừa tiền kèm tính năng đọc to giọng nói"
+                textSize={settings.seniorTextSize}
+                showChevron
+                onClick={() => setActiveModal('guide')}
+                isLast
+              />
+            </LiquidGlassCard>
           </div>
+
+          {/* SECTION 4: DANH BẠ AN TOÀN (WHITE-LIST) */}
+          <div className="mb-6 space-y-2">
+            <div className="px-4 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Danh Bạ Người Thân Tin Cậy (Luôn Được Phép Gọi)
+              </span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                {trustedContacts.length} Số An Toàn
+              </span>
+            </div>
+
+            <LiquidGlassCard className="p-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                {trustedContacts.map((contact) => (
+                  <div
+                    key={contact.id}
+                    className="p-3 rounded-xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-3 shadow-sm"
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-sm ${contact.avatarColor}`}
+                    >
+                      {contact.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1">
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">
+                          {contact.name}
+                        </h4>
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                        {contact.phone}
+                      </p>
+                      <p className="text-[11px] text-blue-600 dark:text-blue-400 font-medium truncate">
+                        {contact.relationship}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </LiquidGlassCard>
+          </div>
+
+          {/* Footer note */}
+          <footer className="text-center py-4 text-xs text-slate-400 dark:text-slate-500">
+            Senior CallShield v2.5 · Thiết kế chuẩn Apple iOS Settings với hiệu ứng Liquid Glassmorphism & Còi Báo Động SOS Từ Xa
+          </footer>
         </div>
       </main>
 
-      {/* Modals */}
-      <NewGameModal
-        isOpen={isNewGameModalOpen}
-        onClose={() => setIsNewGameModalOpen(false)}
-        onStartGame={handleStartNewGame}
-        lang={lang}
-      />
+      {/* Interactive Modals */}
+      {activeModal === 'simulator' && (
+        <CallSimulatorModal
+          scenario={activeScenario}
+          settings={settings}
+          onClose={() => setActiveModal('none')}
+          onCallEnded={handleCallEnded}
+        />
+      )}
 
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        boardTheme={boardTheme}
-        onSelectBoardTheme={handleSelectBoardTheme}
-        pieceTheme={pieceTheme}
-        onSelectPieceTheme={handleSelectPieceTheme}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
-        showCoordinates={showCoordinates}
-        onToggleCoordinates={handleToggleCoords}
-        showLegalMoves={showLegalMoves}
-        onToggleLegalMoves={handleToggleLegalMoves}
-        highlightLastMove={highlightLastMove}
-        onToggleHighlightLastMove={handleToggleHighlightLast}
-        autoFlipBoard={autoFlipBoard}
-        onToggleAutoFlipBoard={handleToggleAutoFlip}
-        lang={lang}
-        onSelectLang={handleSelectLang}
-      />
+      {activeModal === 'social_scanner' && (
+        <SocialScannerModal
+          onClose={() => setActiveModal('none')}
+          guardianPhone={settings.guardianPhone}
+          textSize={settings.seniorTextSize}
+        />
+      )}
 
-      <GameOverModal
-        isOpen={isGameOverModalOpen}
-        result={gameResult}
-        userColor={playerColor}
-        onRematch={handleRematch}
-        onNewGame={() => {
-          setIsGameOverModalOpen(false);
-          setIsNewGameModalOpen(true);
-        }}
-        onClose={() => setIsGameOverModalOpen(false)}
-        lang={lang}
-      />
+      {activeModal === 'prefix_manager' && (
+        <PrefixManagerModal
+          prefixRules={prefixRules}
+          onToggleRule={handleTogglePrefix}
+          onAddRule={handleAddPrefix}
+          onDeleteRule={handleDeletePrefix}
+          onClose={() => setActiveModal('none')}
+        />
+      )}
 
-      <CoachModal
-        isOpen={isCoachModalOpen}
-        onClose={() => setIsCoachModalOpen(false)}
-        game={game}
-        lang={lang}
-      />
+      {activeModal === 'history' && (
+        <CallHistoryModal
+          records={callHistory}
+          onClearHistory={() => setCallHistory([])}
+          onClose={() => setActiveModal('none')}
+        />
+      )}
+
+      {activeModal === 'guardian' && (
+        <GuardianSettingsModal
+          settings={settings}
+          onUpdateSettings={(newVals) => setSettings((prev) => ({ ...prev, ...newVals }))}
+          onClose={() => setActiveModal('none')}
+        />
+      )}
+
+      {activeModal === 'guide' && (
+        <SeniorGuideModal
+          guardianPhone={settings.guardianPhone}
+          onClose={() => setActiveModal('none')}
+        />
+      )}
+
+      {activeModal === 'sos_remote_settings' && (
+        <SosRemoteSettingsModal
+          settings={settings}
+          onUpdateSettings={(newVals) => setSettings((prev) => ({ ...prev, ...newVals }))}
+          onTriggerAlarm={(info) => {
+            setActiveModal('none');
+            setActiveAlarmInfo(info);
+          }}
+          onClose={() => setActiveModal('none')}
+        />
+      )}
+
+      {/* FULLSCREEN EMERGENCY ALARM STROBE MODAL */}
+      {activeAlarmInfo && (
+        <EmergencyAlarmModal
+          triggerInfo={activeAlarmInfo}
+          settings={settings}
+          onDismiss={handleDismissAlarm}
+        />
+      )}
+
+      {/* Floating Toast Notification */}
+      {notificationToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-slate-900/90 text-white dark:bg-white/90 dark:text-slate-900 text-xs font-semibold shadow-2xl backdrop-blur-md flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+          <span>{notificationToast}</span>
+        </div>
+      )}
     </div>
   );
 }
+export default App;

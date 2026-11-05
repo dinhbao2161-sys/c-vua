@@ -1,6 +1,6 @@
 {
-  "name": "GrandMaster Chess – Premium FIDE Chess Web App",
-  "description": "Trò chơi Cờ Vua Cao Cấp chuẩn FIDE quốc tế - Đấu AI đa cấp độ, 2 người chơi cùng máy, đồng hồ cờ, phân tích thế cờ, gợi ý và âm thanh sống động.",
+  "name": "Senior CallShield – Quản Lý Cuộc Gọi & Bảo Vệ Người Cao Tuổi",
+  "description": "Ứng dụng quản lý cuộc gọi thoại và lá chắn chống lừa đảo thông minh dành cho người cao tuổi, giao diện Cài đặt iPhone hiệu ứng Liquid Glass với trợ lý AI can thiệp cuộc gọi, nhận diện đầu số và kiểm tra tài khoản mạng xã hội.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

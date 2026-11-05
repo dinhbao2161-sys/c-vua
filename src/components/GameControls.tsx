@@ -10,7 +10,8 @@ import {
   Handshake, 
   Settings, 
   PlusCircle, 
-  FlipHorizontal 
+  FlipHorizontal,
+  Mic
 } from 'lucide-react';
 
 interface GameControlsProps {
@@ -19,6 +20,7 @@ interface GameControlsProps {
   canUndo: boolean;
   onHint: () => void;
   onAskCoach: () => void;
+  onOpenVoiceDialogue: () => void;
   onFlipBoard: () => void;
   onResign: () => void;
   onOfferDraw: () => void;
@@ -34,6 +36,7 @@ export const GameControls: React.FC<GameControlsProps> = ({
   canUndo,
   onHint,
   onAskCoach,
+  onOpenVoiceDialogue,
   onFlipBoard,
   onResign,
   onOfferDraw,
@@ -44,6 +47,28 @@ export const GameControls: React.FC<GameControlsProps> = ({
 }) => {
   return (
     <div className="flex flex-col gap-2 w-full">
+      {/* Voice Dialogue Highlight Button */}
+      <button
+        onClick={onOpenVoiceDialogue}
+        className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/15 via-purple-500/20 to-amber-500/15 hover:from-amber-500/25 hover:via-purple-500/30 hover:to-amber-500/25 border border-amber-500/40 text-amber-200 font-bold text-xs sm:text-sm shadow-md active:scale-98 transition-all group"
+      >
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-amber-500 text-slate-950 shadow-sm group-hover:scale-105 transition-transform">
+            <Mic className="w-4 h-4" />
+          </div>
+          <span>{t(lang, 'voiceDialogue')}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="flex h-2 w-2 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+          </span>
+          <span className="text-[10px] font-semibold tracking-wide uppercase px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            Giọng nói AI
+          </span>
+        </div>
+      </button>
+
       {/* Primary Actions Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <button
